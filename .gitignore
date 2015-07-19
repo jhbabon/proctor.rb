@@ -1,0 +1,35 @@
+## File from https://github.com/github/gitignore/blob/master/Ruby.gitignore
+*.gem
+*.rbc
+/.config
+/coverage/
+/InstalledFiles
+/pkg/
+/spec/reports/
+/spec/examples.txt
+/test/tmp/
+/test/version_tmp/
+/tmp/
+
+# SQLite3 files
+**/*.sqlite3
+
+## Specific to RubyMotion:
+.dat*
+.repl_history
+build/
+
+## Documentation cache and generated files:
+/.yardoc/
+/_yardoc/
+/doc/
+/rdoc/
+
+## Environment normalisation:
+/.bundle/
+/vendor/bundle
+/lib/bundler/man/
+/.env
+
+# unless supporting rvm < 1.11.0 or doing something fancy, ignore this:
+.rvmrc
