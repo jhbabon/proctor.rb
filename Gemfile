@@ -13,4 +13,9 @@ gem "sqlite3", "~> 1.3"
 gem "rake", "~> 10.4"
 
 # App server
-gem "puma", "~> 2.12"
+gem "puma", "~> 2.12", :require => false
+
+group :test do
+  gem "rack-test", "~> 0.6"
+  gem "minitest", "~> 5.7"
+end

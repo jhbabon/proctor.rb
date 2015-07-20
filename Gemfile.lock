@@ -25,6 +25,8 @@ GEM
     rack (1.6.4)
     rack-protection (1.5.3)
       rack
+    rack-test (0.6.3)
+      rack (>= 1.0)
     rake (10.4.2)
     sinatra (1.4.6)
       rack (~> 1.4)
@@ -44,8 +46,10 @@ PLATFORMS
 
 DEPENDENCIES
   dotenv (~> 2.0)
+  minitest (~> 5.7)
   oj (~> 2.12)
   puma (~> 2.12)
+  rack-test (~> 0.6)
   rake (~> 10.4)
   sinatra (~> 1.4)
   sinatra-activerecord (~> 2.0)

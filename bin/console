@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+
+require_relative "../environment"
+require "proctor"
+require "irb"
+
+IRB.start
