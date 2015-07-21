@@ -1,5 +1,4 @@
 require "slug_validator"
-require "user"
 
 class Pubkey < ActiveRecord::Base
   validates :key, :presence => true

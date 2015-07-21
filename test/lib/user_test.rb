@@ -1,14 +1,11 @@
 require "helper"
-require "user"
+require "models"
 
 class UserTest < Minitest::Test
   def test_create_user
-    before = User.count
-    user = User.create(:name => "test")
-    after = User.count
-
-    assert user
-    assert_equal before + 1, after, "Expected to increase users by 1"
+    assert_difference -> { User.count } do
+      assert User.create(:name => "test")
+    end
   end
 
   def test_validate_name_presence

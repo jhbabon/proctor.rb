@@ -11,15 +11,29 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20150720213251) do
+ActiveRecord::Schema.define(version: 20150721183531) do
+
+  create_table "memberships", force: :cascade do |t|
+    t.integer "user_id"
+    t.integer "team_id"
+  end
+
+  add_index "memberships", ["team_id"], name: "index_memberships_on_team_id"
+  add_index "memberships", ["user_id"], name: "index_memberships_on_user_id"
 
   create_table "pubkeys", force: :cascade do |t|
-    t.integer "user_id"
     t.string  "title"
     t.text    "key"
+    t.integer "user_id"
   end
 
   add_index "pubkeys", ["user_id", "title"], name: "index_pubkeys_on_user_id_and_title"
+
+  create_table "teams", force: :cascade do |t|
+    t.string "name"
+  end
+
+  add_index "teams", ["name"], name: "index_teams_on_name"
 
   create_table "users", force: :cascade do |t|
     t.string "name"

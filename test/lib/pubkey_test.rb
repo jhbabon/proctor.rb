@@ -1,14 +1,11 @@
 require "helper"
-require "user"
+require "models"
 
 class PubkeyTest < Minitest::Test
   def test_create_pubkey
-    before = Pubkey.count
-    pubkey = Pubkey.create(:user_id => 1, :title => "test", :key => fixture_file("id_rsa.pub").read)
-    after = Pubkey.count
-
-    assert pubkey
-    assert_equal before + 1, after, "Expected to increase pubkeys by 1"
+    assert_difference -> { Pubkey.count } do
+      assert Pubkey.create(:user_id => 1, :title => "test", :key => fixture_file("id_rsa.pub").read)
+    end
   end
 
   def test_validate_key_presence

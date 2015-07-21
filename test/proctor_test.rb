@@ -73,7 +73,7 @@ class ProctorTest < Minitest::Test
     post "/users", to_json({ "name" => "batman" })
 
     assert_status 201
-    assert_match(/\/users\/batman\z/, last_response.headers["Location"])
+    assert_location(/\/users\/batman\z/)
   end
 
   def test_create_user_with_exising_name
@@ -96,7 +96,7 @@ class ProctorTest < Minitest::Test
     patch "/users/robin", to_json({ "name" => "batman" })
 
     assert_status 200
-    assert_match(/\/users\/batman\z/, last_response.headers["Location"])
+    assert_location(/\/users\/batman\z/)
   end
 
   def test_update_user_with_existing_name
@@ -123,25 +123,36 @@ class ProctorTest < Minitest::Test
     assert_status 404
   end
 
+  def test_get_user_teams
+    User.create(:name => "green-lantern")
+    Membership.link("user" => "green-lantern", "team" => "corps")
+
+    get "/users/green-lantern/teams"
+
+    assert_status 200
+
+    actual = parsed_response
+
+    assert_equal 1, actual.size
+    assert_equal "corps", actual.first["name"]
+  end
+
   def test_create_pubkey
     user = User.create(:name => "batman")
-    before = user.pubkeys.count
+    assert_difference -> { user.reload.pubkeys.count } do
+      key = fixture_file("id_rsa.pub").read
+      payload = {
+        "title" => "testkey",
+        "key"   => key,
+      }
+      post "/users/batman/pubkeys", to_json(payload)
 
-    key = fixture_file("id_rsa.pub").read
-    payload = {
-      "title" => "testkey",
-      "key"   => key,
-    }
-    post "/users/batman/pubkeys", to_json(payload)
-
-    assert_status 201
-    assert_match(
-      /\/users\/batman\/pubkeys\/testkey\z/,
-      last_response.headers["Location"]
-    )
-
-    after = user.pubkeys.count
-    assert_equal before + 1, after
+      assert_status 201
+      assert_match(
+        /\/users\/batman\/pubkeys\/testkey\z/,
+        last_response.headers["Location"]
+      )
+    end
   end
 
   def test_update_pubkey
@@ -217,10 +228,138 @@ class ProctorTest < Minitest::Test
     assert_nil Pubkey.find_by(:title => "batkey")
   end
 
+  def test_create_membership
+    User.create(:name => "batman")
+    Team.create(:name => "jla")
+
+    payload = { "user" => "batman", "team" => "jla" }
+
+    assert_difference -> { Membership.count } do
+      post "/memberships", to_json(payload)
+
+      assert_status 201
+      assert_location(/\/teams\/jla\z/)
+    end
+  end
+
+  def test_delete_membership
+    User.create(:name => "batman")
+    Team.create(:name => "jla")
+    Membership.link("user" => "batman", "team" => "jla")
+
+    payload = { "user" => "batman", "team" => "jla" }
+
+    assert_difference -> { Membership.count }, -1 do
+      delete "/memberships", to_json(payload)
+
+      assert_status 204
+    end
+  end
+
+  def test_get_teams
+    Team.create(:name => "jla")
+    Team.create(:name => "x-men")
+
+    get "/teams"
+
+    assert_status 200
+
+    actual = parsed_response
+    assert_equal 2, actual.size
+    assert_equal "jla", actual.first["name"]
+    assert_equal "x-men", actual.last["name"]
+  end
+
+  def test_get_team
+    Team.create(:name => "jla")
+
+    get "/teams/jla"
+
+    assert_status 200
+
+    actual = parsed_response
+    assert_equal "jla", actual["name"]
+  end
+
+  def test_get_missing_team
+    get "/teams/empire"
+
+    assert_status 404
+  end
+
+  def test_update_team
+    team = Team.create(:name => "jla")
+
+    payload = { "name" => "jsa" }
+
+    patch "/teams/jla", to_json(payload)
+
+    assert_status 200
+    assert_equal "jsa", team.reload.name
+  end
+
+  def test_update_missing_team
+    patch "/teams/empire", to_json({ "name" => "rebels" })
+
+    assert_status 404
+  end
+
+  def test_delete_team
+    Team.create(:name => "empire")
+
+    delete "/teams/empire"
+
+    assert_status 204
+    assert_nil Team.find_by(:name => "empire")
+  end
+
+  def test_delete_missing_team
+    delete "/teams/empire"
+
+    assert_status 404
+  end
+
+  def test_get_team_users
+    user = User.new(:name => "batman")
+    user.teams.build(:name => "jla")
+    user.save
+
+    get "/teams/jla/users"
+
+    assert_status 200
+
+    actual = parsed_response
+
+    assert_equal 1, actual.size
+    assert_equal "batman", actual.first["name"]
+  end
+
+  def test_get_team_pubkeys
+    key = fixture_file("id_rsa.pub").read
+    user = User.new(:name => "batman")
+    user.teams.build(:name => "jla")
+    user.pubkeys.build(:title => "batkey", key: key)
+    user.save
+
+    get "/teams/jla/pubkeys"
+
+    assert_status 200
+
+    actual = parsed_response
+
+    assert_equal 1, actual.size
+    assert_equal "batkey", actual.first["title"]
+    assert_equal key, actual.first["key"]
+  end
+
   private
 
   def assert_status(code)
     assert_equal code, last_response.status
+  end
+
+  def assert_location(match)
+    assert_match(match, last_response.headers["Location"])
   end
 
   def parsed_response

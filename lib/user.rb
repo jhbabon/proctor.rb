@@ -1,5 +1,4 @@
 require "slug_validator"
-require "pubkey"
 
 class User < ActiveRecord::Base
   validates :name,
@@ -8,6 +7,8 @@ class User < ActiveRecord::Base
     :slug       => true
 
   has_many :pubkeys
+  has_many :memberships
+  has_many :teams, :through => :memberships
 
   def as_api
     as_json(only: %i(name))
