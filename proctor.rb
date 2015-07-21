@@ -33,29 +33,55 @@ helpers do
   end
 end
 
+def users_path
+  "/users"
+end
+
+def user_path(name = ":name")
+  join_paths users_path, name
+end
+
+def user_pubkeys_path(user = ":name")
+  join_paths user_path(user), "pubkeys"
+end
+
+def user_pubkey_path(user = ":name", title = ":title")
+  join_paths user_pubkeys_path(user), title
+end
+
+def join_paths(*paths)
+  paths.join("/")
+end
+
+before user_path(":name*") do
+  @user = User.find_by(:name => params["name"])
+  halt 404 if @user.nil?
+end
+
+before user_pubkey_path(":name", ":title*") do
+  @pubkey = @user.pubkeys.find_by(:title => params["title"])
+  halt 404 if @pubkey.nil?
+end
 
 get "/" do
   "Hello world!"
 end
 
-get "/users", :provides => :json do
+get users_path, :provides => :json do
   json User.order(:name).map(&:as_api)
 end
 
-get "/users/:name", :provides => :json do |name|
-  user = User.find_by(:name => name)
-  halt 404 if user.nil?
-
-  json user.as_api
+get user_path, :provides => :json do
+  json @user.as_api
 end
 
-post "/users" do
+post users_path do
   user = User.new
   user.from_api(parse_body)
 
   if user.save
     status 201
-    headers "Location" => to("/users/#{user.name}")
+    headers "Location" => to(user_path(user.name))
 
     json user.as_api
   else
@@ -65,19 +91,66 @@ post "/users" do
   end
 end
 
-patch "/users/:name" do |name|
-  user = User.find_by(:name => name)
-  halt 404 if user.nil?
+patch user_path do
+  @user.from_api(parse_body)
 
-  user.from_api(parse_body)
+  if @user.save
+    headers "Location" => to(user_path(@user.name))
 
-  if user.save
-    headers "Location" => to("/users/#{user.name}")
-
-    json user.as_api
+    json @user.as_api
   else
     status 422 # TODO: check correct error value
 
-    json({ "errors" => user.errors.full_messages })
+    json({ "errors" => @user.errors.full_messages })
   end
+end
+
+delete user_path do
+  @user.destroy
+
+  status 204
+end
+
+get user_pubkeys_path do
+  json @user.pubkeys.order(:title).map(&:as_api)
+end
+
+get user_pubkey_path do
+  json @pubkey.as_api
+end
+
+post user_pubkeys_path do
+  pubkey = @user.pubkeys.new
+  pubkey.from_api(parse_body)
+
+  if pubkey.save
+    status 201
+    headers "Location" => to(user_pubkey_path(@user.name, pubkey.title))
+
+    json pubkey.as_api
+  else
+    status 422 # TODO: check correct error value
+
+    json({ "errors" => pubkey.errors.full_messages })
+  end
+end
+
+patch user_pubkey_path do
+  @pubkey.from_api(parse_body)
+
+  if @pubkey.save
+    headers "Location" => to(user_pubkey_path(@user.name, @pubkey.title))
+
+    json @pubkey.as_api
+  else
+    status 422 # TODO: check correct error value
+
+    json({ "errors" => @pubkey.errors.full_messages })
+  end
+end
+
+delete user_pubkey_path do
+  @pubkey.destroy
+
+  status 204
 end

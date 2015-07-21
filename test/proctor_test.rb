@@ -108,6 +108,115 @@ class ProctorTest < Minitest::Test
     assert_status 422
   end
 
+  def test_delete_existing_user
+    User.create(:name => "joker")
+
+    delete "/users/joker"
+
+    assert_status 204
+    assert_nil User.find_by(:name => "joker")
+  end
+
+  def test_delete_missing_user
+    delete "/users/clayface"
+
+    assert_status 404
+  end
+
+  def test_create_pubkey
+    user = User.create(:name => "batman")
+    before = user.pubkeys.count
+
+    key = fixture_file("id_rsa.pub").read
+    payload = {
+      "title" => "testkey",
+      "key"   => key,
+    }
+    post "/users/batman/pubkeys", to_json(payload)
+
+    assert_status 201
+    assert_match(
+      /\/users\/batman\/pubkeys\/testkey\z/,
+      last_response.headers["Location"]
+    )
+
+    after = user.pubkeys.count
+    assert_equal before + 1, after
+  end
+
+  def test_update_pubkey
+    key = fixture_file("id_rsa.pub").read
+    user = User.create(:name => "batman")
+    user.pubkeys.create(:title => "batkey", :key => key)
+
+    payload = { "key" => fixture_file("id_rsa_v2.pub").read }
+
+    patch "/users/batman/pubkeys/batkey", to_json(payload)
+
+    assert_status 200
+  end
+
+  def test_update_missing_key
+    User.create(:name => "batman")
+    payload = { "key" => fixture_file("id_rsa_v2.pub").read }
+
+    patch "/users/batman/pubkeys/batkey", to_json(payload)
+
+    assert_status 404
+  end
+
+  def test_get_one_user_pubkey
+    key = fixture_file("id_rsa.pub").read
+    user = User.create(:name => "batman")
+    user.pubkeys.create(:title => "batkey", :key => key)
+
+    get "/users/batman/pubkeys/batkey"
+
+    actual = parsed_response
+
+    assert_status 200
+    assert_equal "batkey", actual["title"]
+    assert_equal key, actual["key"]
+  end
+
+  def test_get_missing_pubkey
+    User.create(:name => "batman")
+    get "/users/batman/pubkeys/batkey"
+
+    assert_status 404
+  end
+
+  def test_get_user_pubkeys
+    user = User.create(:name => "batman")
+
+    key_b = fixture_file("id_rsa_v2.pub").read
+    key_a = fixture_file("id_rsa.pub").read
+    user.pubkeys.create(:title => "key_b", :key => key_b)
+    user.pubkeys.create(:title => "key_a", :key => key_a)
+
+    get "/users/batman/pubkeys"
+
+    actual = parsed_response
+
+    assert_status 200
+    assert_equal 2, actual.size
+    assert_equal "key_a", actual.first["title"]
+    assert_equal key_a, actual.first["key"]
+    assert_equal "key_b", actual.last["title"]
+    assert_equal key_b, actual.last["key"]
+  end
+
+  def test_delete_user_pubkey
+    key = fixture_file("id_rsa.pub").read
+    user = User.create(:name => "batman")
+    user.pubkeys.create(:title => "batkey", :key => key)
+
+    delete "/users/batman/pubkeys/batkey"
+
+    assert_status 204
+    assert_nil Pubkey.find_by(:title => "batkey")
+  end
+
   private
 
   def assert_status(code)

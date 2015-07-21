@@ -21,7 +21,7 @@ namespace :db do
   namespace :test do
     desc "Setup database for test env. Use this instead of db:test:prepare"
     task :setup do
-      system "RACK_ENV='test' bundle exec rake db:drop db:create db:schema:load"
+      system "RACK_ENV='test' bundle exec rake db:drop db:create db:migrate"
     end
   end
 end

@@ -1,8 +1,13 @@
+require "slug_validator"
+require "pubkey"
+
 class User < ActiveRecord::Base
   validates :name,
     :presence   => true,
     :uniqueness => true,
-    :format     => { :with => /\A(?:[a-z]|_|-|\d)*\z/ }
+    :slug       => true
+
+  has_many :pubkeys
 
   def as_api
     as_json(only: %i(name))
