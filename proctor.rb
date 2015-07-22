@@ -6,15 +6,10 @@ require "oj"
 
 require "models"
 require "ability"
+require "bootstrap"
 
 use Rack::Auth::Basic do |username, password|
   user = User.find_by(:name => username)
-  # Use default ENV for main admin user
-  user ||= User.new(
-    :name     => ENV["PROCTOR_ADMIN_USERNAME"],
-    :password => ENV["PROCTOR_ADMIN_PASSWORD"],
-    :role     => "admin"
-  )
   user && user.authenticate(password)
 end
 
@@ -37,6 +32,8 @@ configure do
       true
     end
   end
+
+  Bootstrap.run(ENV)
 end
 
 helpers do
@@ -66,12 +63,9 @@ helpers do
   end
 
   def current_user
-    @current_user ||= User.find_or_initialize_by(:name => env["REMOTE_USER"])
-    if @current_user.new_record?
-      @current_user.role = "admin"
+    @current_user ||= User.find_by(:name => env["REMOTE_USER"]).tap do |user|
+      halt 401 if user.nil?
     end
-
-    @current_user
   end
 
   def ability
