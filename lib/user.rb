@@ -39,7 +39,7 @@ class User < ActiveRecord::Base
   end
 
   def as_api
-    as_json(only: %i(name))
+    as_json(only: %i(name role))
   end
 
   def from_api(hash)

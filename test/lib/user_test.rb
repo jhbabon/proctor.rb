@@ -67,7 +67,7 @@ class UserTest < Minitest::Test
 
   def test_as_api
     user = FactoryGirl.build(:user, :name => "test")
-    expected = { "name" => "test" }
+    expected = { "name" => "test", "role" => "admin" }
 
     assert_equal expected, user.as_api, "Expected to return correct API format"
   end
