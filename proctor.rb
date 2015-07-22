@@ -117,7 +117,10 @@ post "/users", :auth => :admin do
 end
 
 patch "/users/:name", :auth => %i(admin user), :ability => :@user do
-  @user.from_api(parse_body)
+  attributes = parse_body
+  halt 403 if attributes.key?("role") && !current_user.admin?
+
+  @user.from_api(attributes)
 
   if @user.save
     location to("/users/#{@user.name}")

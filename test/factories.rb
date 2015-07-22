@@ -36,6 +36,7 @@ FactoryGirl.define do
 
     trait :robin do
       name "robin"
+      role "user"
     end
   end
 

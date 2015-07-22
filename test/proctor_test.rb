@@ -98,6 +98,15 @@ class ProctorTest < Minitest::Test
     assert_location(/\/users\/batman\z/)
   end
 
+  def test_user_cannot_change_its_role
+    robin = FactoryGirl.create(:user, :robin)
+    authorize robin
+
+    patch "/users/robin", to_json({ "role" => "admin" })
+
+    assert_status 403
+  end
+
   def test_update_user_for_other_user
     %i(user guest).each do |role|
       authorize role
