@@ -71,6 +71,13 @@ helpers do
   def ability
     @ability ||= Ability.new(current_user)
   end
+
+  def unprocessable_entity(record)
+    status 422
+    errors = { "errors" => record.errors.full_messages }
+
+    json errors
+  end
 end
 
 before "/users/:name*" do
@@ -110,9 +117,7 @@ post "/users", :auth => :admin do
 
     json user.as_api
   else
-    status 422 # TODO: check correct error value
-
-    json({ "errors" => user.errors.full_messages })
+    unprocessable_entity user
   end
 end
 
@@ -127,9 +132,7 @@ patch "/users/:name", :auth => %i(admin user), :ability => :@user do
 
     json @user.as_api
   else
-    status 422 # TODO: check correct error value
-
-    json({ "errors" => @user.errors.full_messages })
+    unprocessable_entity @user
   end
 end
 
@@ -157,9 +160,7 @@ post "/users/:name/pubkeys", :auth => %i(admin user), :ability => :@user do
 
     json pubkey.as_api
   else
-    status 422 # TODO: check correct error value
-
-    json({ "errors" => pubkey.errors.full_messages })
+    unprocessable_entity pubkey
   end
 end
 
@@ -171,9 +172,7 @@ patch "/users/:name/pubkeys/:title", :auth => %i(admin user), :ability => :@pubk
 
     json @pubkey.as_api
   else
-    status 422 # TODO: check correct error value
-
-    json({ "errors" => @pubkey.errors.full_messages })
+    unprocessable_entity @pubkey
   end
 end
 
@@ -203,9 +202,7 @@ patch "/teams/:name", :auth => :admin do
 
     json @team.as_api
   else
-    status 422 # TODO: check correct error value
-
-    json({ "errors" => @team.errors.full_messages })
+    unprocessable_entity @team
   end
 end
 
@@ -230,9 +227,7 @@ post "/memberships", :auth => :admin do
     status 201
     location to("/teams/#{membership.team.name}")
   else
-    status 422 # TODO: check correct error value
-
-    json({ "errors" => membership.errors.full_messages })
+    unprocessable_entity membership
   end
 end
 
