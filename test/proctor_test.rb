@@ -9,6 +9,10 @@ class ProctorTest < Minitest::Test
     Sinatra::Application
   end
 
+  def setup
+    authorize :admin
+  end
+
   def test_root
     get "/", {}, "HTTP_CONTENT_TYPE" => "application/json"
 
@@ -16,42 +20,17 @@ class ProctorTest < Minitest::Test
     assert_equal "Hello world!", last_response.body
   end
 
-  def test_get_users_without_any_user
-    User.destroy_all
-
-    get "/users"
-
-    assert_status 200
-    assert_predicate parsed_response, :empty?
-  end
-
-  def test_get_users_with_existing_users
-    2.times do |n|
-      User.create(:name => "test-#{n}")
-    end
-
-    get "/users"
-
-    actual = parsed_response
-
-    assert_status 200
-    assert_equal 2, actual.size
-    assert_equal "test-0", actual.first["name"]
-    assert_equal "test-1", actual.last["name"]
-  end
-
   def test_get_users_ordered_by_name
-    User.create(:name => "conan")
-    User.create(:name => "atila")
+    FactoryGirl.create(:user, :flash)
+    FactoryGirl.create(:user, :batman)
 
     get "/users"
 
     actual = parsed_response
 
     assert_status 200
-    assert_equal 2, actual.size
-    assert_equal "atila", actual.first["name"]
-    assert_equal "conan", actual.last["name"]
+    assert_equal "batman", actual[0]["name"]
+    assert_equal "flash", actual[1]["name"]
   end
 
   def test_get_user_with_wrong_name
@@ -61,7 +40,7 @@ class ProctorTest < Minitest::Test
   end
 
   def test_get_user_with_existing_name
-    User.create(:name => "batman")
+    FactoryGirl.create(:user, :batman)
 
     get "/users/batman"
 
@@ -70,14 +49,24 @@ class ProctorTest < Minitest::Test
   end
 
   def test_create_user
-    post "/users", to_json({ "name" => "batman" })
+    post "/users", to_json({ "name" => "batman", "password" => "secret", "role" => "user" })
 
     assert_status 201
     assert_location(/\/users\/batman\z/)
   end
 
+  def test_create_user_for_no_admins
+    %i(user guest).each do |role|
+      authorize role
+
+      post "/users", to_json({ "name" => "batman", "password" => "secret", "role" => "user" })
+
+      assert_status 403
+    end
+  end
+
   def test_create_user_with_exising_name
-    User.create(:name => "batman")
+    FactoryGirl.create(:user, :batman)
 
     post "/users", to_json({ "name" => "batman" })
 
@@ -91,7 +80,7 @@ class ProctorTest < Minitest::Test
   end
 
   def test_update_user
-    User.create(:name => "robin")
+    FactoryGirl.create(:user, :robin)
 
     patch "/users/robin", to_json({ "name" => "batman" })
 
@@ -99,9 +88,19 @@ class ProctorTest < Minitest::Test
     assert_location(/\/users\/batman\z/)
   end
 
+  def test_update_user_for_guest
+    authorize :guest
+
+    FactoryGirl.create(:user, :robin)
+
+    patch "/users/robin", to_json({ "name" => "batman" })
+
+    assert_status 403
+  end
+
   def test_update_user_with_existing_name
-    User.create(:name => "robin")
-    User.create(:name => "batman")
+    FactoryGirl.create(:user, :robin)
+    FactoryGirl.create(:user, :batman)
 
     patch "/users/robin", to_json({ "name" => "batman" })
 
@@ -109,12 +108,22 @@ class ProctorTest < Minitest::Test
   end
 
   def test_delete_existing_user
-    User.create(:name => "joker")
+    FactoryGirl.create(:user, :batman)
 
-    delete "/users/joker"
+    delete "/users/batman"
 
     assert_status 204
-    assert_nil User.find_by(:name => "joker")
+    assert_nil User.find_by(:name => "batman")
+  end
+
+  def test_delete_existing_user_for_guest
+    authorize :guest
+
+    FactoryGirl.create(:user, :batman)
+
+    delete "/users/batman"
+
+    assert_status 403
   end
 
   def test_delete_missing_user
@@ -124,7 +133,7 @@ class ProctorTest < Minitest::Test
   end
 
   def test_get_user_teams
-    User.create(:name => "green-lantern")
+    FactoryGirl.create(:user, :green_lantern)
     Membership.link("user" => "green-lantern", "team" => "corps")
 
     get "/users/green-lantern/teams"
@@ -138,9 +147,9 @@ class ProctorTest < Minitest::Test
   end
 
   def test_create_pubkey
-    user = User.create(:name => "batman")
+    user = FactoryGirl.create(:user, :batman)
     assert_difference -> { user.reload.pubkeys.count } do
-      key = fixture_file("id_rsa.pub").read
+      key = fixture_content("id_rsa.pub")
       payload = {
         "title" => "testkey",
         "key"   => key,
@@ -155,21 +164,44 @@ class ProctorTest < Minitest::Test
     end
   end
 
+  def test_create_pubkey_for_guest
+    authorize :guest
+
+    FactoryGirl.create(:user, :batman)
+
+    post "/users/batman/pubkeys"
+
+    assert_status 403
+  end
+
   def test_update_pubkey
-    key = fixture_file("id_rsa.pub").read
-    user = User.create(:name => "batman")
+    key = fixture_content("id_rsa.pub")
+    user = FactoryGirl.create(:user, :batman)
     user.pubkeys.create(:title => "batkey", :key => key)
 
-    payload = { "key" => fixture_file("id_rsa_v2.pub").read }
+    payload = { "key" => fixture_content("id_rsa_v2.pub") }
 
     patch "/users/batman/pubkeys/batkey", to_json(payload)
 
     assert_status 200
   end
 
+  def test_update_pubkey_for_guest
+    authorize :guest
+
+    user = FactoryGirl.create(:user, :batman)
+    user.pubkeys.create(:title => "batkey", :key => "test")
+
+    payload = { "key" => "test-2" }
+
+    patch "/users/batman/pubkeys/batkey", to_json(payload)
+
+    assert_status 403
+  end
+
   def test_update_missing_key
-    User.create(:name => "batman")
-    payload = { "key" => fixture_file("id_rsa_v2.pub").read }
+    FactoryGirl.create(:user, :batman)
+    payload = { "key" => fixture_content("id_rsa_v2.pub") }
 
     patch "/users/batman/pubkeys/batkey", to_json(payload)
 
@@ -177,8 +209,8 @@ class ProctorTest < Minitest::Test
   end
 
   def test_get_one_user_pubkey
-    key = fixture_file("id_rsa.pub").read
-    user = User.create(:name => "batman")
+    key = fixture_content("id_rsa.pub")
+    user = FactoryGirl.create(:user, :batman)
     user.pubkeys.create(:title => "batkey", :key => key)
 
     get "/users/batman/pubkeys/batkey"
@@ -191,17 +223,17 @@ class ProctorTest < Minitest::Test
   end
 
   def test_get_missing_pubkey
-    User.create(:name => "batman")
+    FactoryGirl.create(:user, :batman)
     get "/users/batman/pubkeys/batkey"
 
     assert_status 404
   end
 
   def test_get_user_pubkeys
-    user = User.create(:name => "batman")
+    user = FactoryGirl.create(:user, :batman)
 
-    key_b = fixture_file("id_rsa_v2.pub").read
-    key_a = fixture_file("id_rsa.pub").read
+    key_b = fixture_content("id_rsa_v2.pub")
+    key_a = fixture_content("id_rsa.pub")
     user.pubkeys.create(:title => "key_b", :key => key_b)
     user.pubkeys.create(:title => "key_a", :key => key_a)
 
@@ -218,8 +250,8 @@ class ProctorTest < Minitest::Test
   end
 
   def test_delete_user_pubkey
-    key = fixture_file("id_rsa.pub").read
-    user = User.create(:name => "batman")
+    key = fixture_content("id_rsa.pub")
+    user = FactoryGirl.create(:user, :batman)
     user.pubkeys.create(:title => "batkey", :key => key)
 
     delete "/users/batman/pubkeys/batkey"
@@ -228,9 +260,20 @@ class ProctorTest < Minitest::Test
     assert_nil Pubkey.find_by(:title => "batkey")
   end
 
+  def test_delete_user_pubkey_for_guest
+    authorize :guest
+
+    user = FactoryGirl.create(:user, :batman)
+    user.pubkeys.create(:title => "batkey", :key => "test")
+
+    delete "/users/batman/pubkeys/batkey"
+
+    assert_status 403
+  end
+
   def test_create_membership
-    User.create(:name => "batman")
-    Team.create(:name => "jla")
+    FactoryGirl.create(:user, :batman)
+    FactoryGirl.create(:team, :jla)
 
     payload = { "user" => "batman", "team" => "jla" }
 
@@ -242,9 +285,26 @@ class ProctorTest < Minitest::Test
     end
   end
 
+  def test_create_membership_for_non_admins
+    %i(user guest).each do |role|
+      authorize role
+
+      user = FactoryGirl.create(:user)
+      team = FactoryGirl.create(:team)
+
+      payload = { "user" => user.name, "team" => team.name }
+
+      assert_difference -> { Membership.count }, 0 do
+        post "/memberships", to_json(payload)
+
+        assert_status 403
+      end
+    end
+  end
+
   def test_delete_membership
-    User.create(:name => "batman")
-    Team.create(:name => "jla")
+    FactoryGirl.create(:user, :batman)
+    FactoryGirl.create(:team, :jla)
     Membership.link("user" => "batman", "team" => "jla")
 
     payload = { "user" => "batman", "team" => "jla" }
@@ -256,9 +316,29 @@ class ProctorTest < Minitest::Test
     end
   end
 
+  def test_delete_membership_for_non_admins
+    %i(user guest).each do |role|
+      authorize role
+
+      user = FactoryGirl.create(:user)
+      team = FactoryGirl.create(:team)
+      Membership.link("user" => user.name, "team" => team.name)
+
+      payload = { "user" => user.name, "team" => team.name }
+
+      payload = { "user" => "batman", "team" => "jla" }
+
+      assert_difference -> { Membership.count }, 0 do
+        delete "/memberships", to_json(payload)
+
+        assert_status 403
+      end
+    end
+  end
+
   def test_get_teams
-    Team.create(:name => "jla")
-    Team.create(:name => "x-men")
+    FactoryGirl.create(:team, :jla)
+    FactoryGirl.create(:team, :xmen)
 
     get "/teams"
 
@@ -271,7 +351,7 @@ class ProctorTest < Minitest::Test
   end
 
   def test_get_team
-    Team.create(:name => "jla")
+    FactoryGirl.create(:team, :jla)
 
     get "/teams/jla"
 
@@ -288,7 +368,7 @@ class ProctorTest < Minitest::Test
   end
 
   def test_update_team
-    team = Team.create(:name => "jla")
+    team = FactoryGirl.create(:team, :jla)
 
     payload = { "name" => "jsa" }
 
@@ -298,6 +378,20 @@ class ProctorTest < Minitest::Test
     assert_equal "jsa", team.reload.name
   end
 
+  def test_update_team_for_non_admins
+    %i(user guest).each do |role|
+      authorize role
+
+      team = FactoryGirl.create(:team)
+
+      payload = { "name" => "jsa" }
+
+      patch "/teams/#{team.name}", to_json(payload)
+
+      assert_status 403
+    end
+  end
+
   def test_update_missing_team
     patch "/teams/empire", to_json({ "name" => "rebels" })
 
@@ -305,12 +399,24 @@ class ProctorTest < Minitest::Test
   end
 
   def test_delete_team
-    Team.create(:name => "empire")
+    FactoryGirl.create(:team, :jla)
 
-    delete "/teams/empire"
+    delete "/teams/jla"
 
     assert_status 204
-    assert_nil Team.find_by(:name => "empire")
+    assert_nil Team.find_by(:name => "jla")
+  end
+
+  def test_delete_team_for_non_admins
+    %i(user guest).each do |role|
+      authorize role
+
+      team = FactoryGirl.create(:team)
+
+      delete "/teams/#{team.name}"
+
+      assert_status 403
+    end
   end
 
   def test_delete_missing_team
@@ -320,7 +426,7 @@ class ProctorTest < Minitest::Test
   end
 
   def test_get_team_users
-    user = User.new(:name => "batman")
+    user = FactoryGirl.create(:user, :batman)
     user.teams.build(:name => "jla")
     user.save
 
@@ -335,8 +441,8 @@ class ProctorTest < Minitest::Test
   end
 
   def test_get_team_pubkeys
-    key = fixture_file("id_rsa.pub").read
-    user = User.new(:name => "batman")
+    key = fixture_content("id_rsa.pub")
+    user = FactoryGirl.create(:user, :batman)
     user.teams.build(:name => "jla")
     user.pubkeys.build(:title => "batkey", key: key)
     user.save
@@ -368,5 +474,17 @@ class ProctorTest < Minitest::Test
 
   def to_json(payload)
     Oj.dump payload
+  end
+
+  def authorize(*args)
+    if args.size == 1
+      user = args.first
+      if user.is_a?(Symbol)
+        user = FactoryGirl.create(:user, user)
+      end
+      super(user.name, user.password)
+    else
+      super(args.first, args.last)
+    end
   end
 end

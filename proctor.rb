@@ -6,6 +6,12 @@ require "oj"
 
 configure do
   set :database, ENV["PROCTOR_DATABASE_URL"]
+
+  set(:auth) do |*roles|
+    condition do
+      halt 403 unless roles.any? { |role| current_user.in_role?(role) }
+    end
+  end
 end
 
 require "models"
@@ -34,6 +40,15 @@ helpers do
 
   def location(url)
     headers "Location" => url
+  end
+
+  def current_user
+    @current_user ||= User.find_or_initialize_by(:name => env["REMOTE_USER"])
+    if @current_user.new_record?
+      @current_user.role = "admin"
+    end
+
+    @current_user
   end
 end
 
@@ -81,6 +96,17 @@ def join_paths(*paths)
   paths.join("/")
 end
 
+use Rack::Auth::Basic do |username, password|
+  user = User.find_by(:name => username)
+  # Use default ENV for main admin user
+  user ||= User.new(
+    :name     => ENV["PROCTOR_ADMIN_USERNAME"],
+    :password => ENV["PROCTOR_ADMIN_PASSWORD"],
+    :role     => "admin"
+  )
+  user && user.authenticate(password)
+end
+
 before user_path(":name*") do
   @user = User.find_by(:name => params["name"])
   halt 404 if @user.nil?
@@ -100,15 +126,15 @@ get "/" do
   "Hello world!"
 end
 
-get users_path, :provides => :json do
+get users_path do
   json User.order(:name).map(&:as_api)
 end
 
-get user_path, :provides => :json do
+get user_path do
   json @user.as_api
 end
 
-post users_path do
+post users_path, :auth => :admin do
   user = User.new
   user.from_api(parse_body)
 
@@ -124,7 +150,7 @@ post users_path do
   end
 end
 
-patch user_path do
+patch user_path, :auth => %i(admin user) do
   @user.from_api(parse_body)
 
   if @user.save
@@ -138,7 +164,7 @@ patch user_path do
   end
 end
 
-delete user_path do
+delete user_path, :auth => %i(admin user) do
   @user.destroy
 
   status 204
@@ -152,7 +178,7 @@ get user_pubkey_path do
   json @pubkey.as_api
 end
 
-post user_pubkeys_path do
+post user_pubkeys_path, :auth => %i(admin user) do
   pubkey = @user.pubkeys.new
   pubkey.from_api(parse_body)
 
@@ -168,7 +194,7 @@ post user_pubkeys_path do
   end
 end
 
-patch user_pubkey_path do
+patch user_pubkey_path, :auth => %i(admin user) do
   @pubkey.from_api(parse_body)
 
   if @pubkey.save
@@ -182,7 +208,7 @@ patch user_pubkey_path do
   end
 end
 
-delete user_pubkey_path do
+delete user_pubkey_path, :auth => %i(admin user) do
   @pubkey.destroy
 
   status 204
@@ -200,7 +226,7 @@ get team_path do
   json @team.as_api
 end
 
-patch team_path do
+patch team_path, :auth => :admin do
   @team.attributes = parse_body
 
   if @team.save
@@ -214,7 +240,7 @@ patch team_path do
   end
 end
 
-delete team_path do
+delete team_path, :auth => :admin do
   @team.destroy
 
   status 204
@@ -228,7 +254,7 @@ get team_pubkeys_path do
   json @team.pubkeys.map(&:as_api)
 end
 
-post memberships_path do
+post memberships_path, :auth => :admin do
   membership = Membership.link(parse_body)
 
   if membership.valid?
@@ -241,7 +267,7 @@ post memberships_path do
   end
 end
 
-delete memberships_path do
+delete memberships_path, :auth => :admin do
   Membership.unlink(parse_body)
 
   status 204

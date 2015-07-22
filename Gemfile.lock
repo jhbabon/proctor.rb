@@ -15,8 +15,11 @@ GEM
       thread_safe (~> 0.3, >= 0.3.4)
       tzinfo (~> 1.1)
     arel (6.0.2)
+    bcrypt (3.1.10)
     builder (3.2.2)
     dotenv (2.0.2)
+    factory_girl (4.5.0)
+      activesupport (>= 3.0.0)
     i18n (0.7.0)
     json (1.8.3)
     minitest (5.7.0)
@@ -45,7 +48,9 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  bcrypt (~> 3.1.10)
   dotenv (~> 2.0)
+  factory_girl (~> 4.5)
   minitest (~> 5.7)
   oj (~> 2.12)
   puma (~> 2.12)

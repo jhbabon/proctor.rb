@@ -56,11 +56,11 @@ class TeamTest < Minitest::Test
   def test_pubkeys
     team = Team.new(:name => "test")
 
-    user = team.users.new(:name => "tester")
-    user.pubkeys.new(:title => "key", :key => "testing")
+    user = team.users.build(:name => "tester")
+    user.pubkeys.build(:title => "key", :key => "testing")
 
-    user = team.users.new(:name => "tester2")
-    user.pubkeys.new(:title => "key", :key => "testing")
+    user = team.users.build(:name => "tester2")
+    user.pubkeys.build(:title => "key", :key => "testing")
 
     assert_equal 2, team.pubkeys.size
   end

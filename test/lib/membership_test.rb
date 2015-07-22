@@ -3,8 +3,8 @@ require "models"
 
 class MembershipTest < Minitest::Test
   def test_link_existing_user_and_team
-    user = User.create(:name => "batman")
-    team = Team.create(:name => "jla")
+    user = FactoryGirl.create(:user, :batman)
+    team = FactoryGirl.create(:team, :jla)
 
     membership = Membership.link("user" => "batman", "team" => "jla")
 
@@ -17,7 +17,7 @@ class MembershipTest < Minitest::Test
 
   def test_link_existing_user_and_new_team
     assert_difference -> { Team.count } do
-      user = User.create(:name => "flash")
+      user = FactoryGirl.create(:user, :flash)
       membership = Membership.link("user" => "flash", "team" => "jsa")
 
       assert membership.persisted?
@@ -36,8 +36,8 @@ class MembershipTest < Minitest::Test
   end
 
   def test_unlink
-    user = User.create(:name => "batman")
-    team = Team.create(:name => "jla")
+    user = FactoryGirl.create(:user, :batman)
+    team = FactoryGirl.create(:team, :jla)
     Membership.create(:user => user, :team => team)
 
     assert_difference -> { Membership.count }, -1 do
