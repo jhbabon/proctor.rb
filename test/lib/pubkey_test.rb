@@ -68,7 +68,7 @@ class PubkeyTest < Minitest::Test
 
   def test_as_api
     pubkey = FactoryGirl.build(:pubkey, :title => "test", :key => "test")
-    expected = { "title" => "test", "key" => "test" }
+    expected = { "title" => "#{pubkey.user.name}@test", "key" => "test" }
 
     assert_equal expected, pubkey.as_api, "Expected to return correct API format"
   end

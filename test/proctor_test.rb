@@ -297,7 +297,7 @@ class ProctorTest < Minitest::Test
     actual = parsed_response
 
     assert_status 200
-    assert_equal "batkey", actual["title"]
+    assert_equal "batman@batkey", actual["title"]
     assert_equal key, actual["key"]
   end
 
@@ -322,9 +322,9 @@ class ProctorTest < Minitest::Test
 
     assert_status 200
     assert_equal 2, actual.size
-    assert_equal "key_a", actual.first["title"]
+    assert_equal "batman@key_a", actual.first["title"]
     assert_equal key_a, actual.first["key"]
-    assert_equal "key_b", actual.last["title"]
+    assert_equal "batman@key_b", actual.last["title"]
     assert_equal key_b, actual.last["key"]
   end
 
@@ -548,7 +548,7 @@ class ProctorTest < Minitest::Test
     actual = parsed_response
 
     assert_equal 1, actual.size
-    assert_equal "batkey", actual.first["title"]
+    assert_equal "batman@batkey", actual.first["title"]
     assert_equal key, actual.first["key"]
   end
 

@@ -9,8 +9,15 @@ class Pubkey < ActiveRecord::Base
 
   belongs_to :user
 
+  def full_title
+    "#{user.name}@#{title}"
+  end
+
   def as_api
-    as_json(only: %i(title key))
+    {
+      "title" => full_title,
+      "key"   => key,
+    }
   end
 
   def from_api(hash)
