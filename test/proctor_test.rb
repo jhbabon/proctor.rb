@@ -14,10 +14,19 @@ class ProctorTest < Minitest::Test
   end
 
   def test_root
-    get "/", {}, "HTTP_CONTENT_TYPE" => "application/json"
+    FactoryGirl.create_list(:user, 3)
+    FactoryGirl.create_list(:pubkey, 2)
+    FactoryGirl.create_list(:team, 1)
+
+    get "/"
 
     assert_status 200
-    assert_equal "Hello world!", last_response.body
+
+    actual = parsed_response
+
+    assert_equal User.count, actual["users"]
+    assert_equal Pubkey.count, actual["pubkeys"]
+    assert_equal Team.count, actual["teams"]
   end
 
   def test_get_users_ordered_by_name

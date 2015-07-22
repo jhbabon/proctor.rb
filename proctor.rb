@@ -96,7 +96,13 @@ before "/teams/:name*" do
 end
 
 get "/" do
-  "Hello world!"
+  info = {
+    "users"   => User.count,
+    "pubkeys" => Pubkey.count,
+    "teams"   => Team.count,
+  }
+
+  json info
 end
 
 get "/users" do
