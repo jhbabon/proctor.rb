@@ -1,3 +1,4 @@
+# Public: Link users with teams.
 class Membership < ActiveRecord::Base
   belongs_to :user
   belongs_to :team

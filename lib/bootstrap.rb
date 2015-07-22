@@ -1,6 +1,6 @@
 require "models"
 
-# Set default admin user if the users table is empty.
+# Public: Set default admin user if the users table is empty.
 #
 # The default user data comes from the environment variables:
 #   - PROCTOR_ADMIN_USERNAME

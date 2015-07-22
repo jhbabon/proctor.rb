@@ -17,6 +17,17 @@ class User < ActiveRecord::Base
   has_many :memberships
   has_many :teams, :through => :memberships
 
+  # Public: check if a User is in the scope of a role.
+  # The scopes of the roles go like this:
+  #
+  #   admin > user > guest
+  #
+  # E.g: If a User is admin, is going to be always true. If the user is
+  # a guest, is going to be true only if the check role is guest.
+  #
+  # check - Symbol or String with the name of the role to check.
+  #
+  # Returns true if the user is an admin.
   def in_role?(check)
     check = check.to_s
 

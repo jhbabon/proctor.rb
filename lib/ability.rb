@@ -1,3 +1,4 @@
+# Public: Model the ability of a User to use other objects.
 class Ability
   def initialize(user)
     @user = user

@@ -16,12 +16,29 @@ end
 configure do
   set :database, ENV["PROCTOR_DATABASE_URL"]
 
+  # Public: Authorize routes based on the current user role
+  #
+  # Examples
+  #
+  #   get "/stuff", :auth => [:admin, :guest]
+  #
+  # If the user doesn't belong to the role the app stops
+  # with 403 (Forbidden) error.
   set :auth do |*roles|
     condition do
       halt 403 unless roles.any? { |role| current_user.in_role?(role) }
     end
   end
 
+  # Check if the current user has the ability to use an object.
+  # The object must be in an instace variable.
+  #
+  # Examples
+  #
+  #   get "/my/stuff", :ability => :@saved_stuff
+  #
+  # If the user can't use the variable the app stops
+  # with 403 (Forbidden) error.
   set :ability do |*things|
     condition do
       things.each do |thing|
@@ -33,6 +50,8 @@ configure do
     end
   end
 
+  # Bootstrap the app with default values
+  # This is called when the file is evaluated
   Bootstrap.run(ENV)
 end
 
@@ -58,20 +77,37 @@ helpers do
     Oj.load request.body.read
   end
 
+  # Public: Set the url as the Location HTTP header.
+  #
+  # url - String with the url for the location.
+  #
+  # Returns nothing.
   def location(url)
     headers "Location" => url
   end
 
+  # Public: Get the current user using the app. Because the user was authenticated
+  # by Rack::Auth::Basic, the name is set in the env["REMOTE_USER"] key.
+  #
+  # Returns the current User or stops with 401 if not found.
   def current_user
     @current_user ||= User.find_by(:name => env["REMOTE_USER"]).tap do |user|
       halt 401 if user.nil?
     end
   end
 
+  # Public: Get the ability of the current_user
+  #
+  # Returns Ability.
   def ability
     @ability ||= Ability.new(current_user)
   end
 
+  # Public: Set the response to 422 for not valid records.
+  #
+  # record - Any ActiveRecord::Base instance.
+  #
+  # Returns the errors of the record as a JSON response.
   def unprocessable_entity(record)
     status 422
     errors = { "errors" => record.errors.full_messages }
