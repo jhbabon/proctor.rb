@@ -7,14 +7,26 @@ require "oj"
 configure do
   set :database, ENV["PROCTOR_DATABASE_URL"]
 
-  set(:auth) do |*roles|
+  set :auth do |*roles|
     condition do
       halt 403 unless roles.any? { |role| current_user.in_role?(role) }
+    end
+  end
+
+  set :ability do |*things|
+    condition do
+      things.each do |thing|
+        thing = instance_variable_get(thing)
+        halt 403 unless ability.can_use?(thing)
+      end
+
+      true
     end
   end
 end
 
 require "models"
+require "ability"
 
 helpers do
 
@@ -49,6 +61,10 @@ helpers do
     end
 
     @current_user
+  end
+
+  def ability
+    @ability ||= Ability.new(current_user)
   end
 end
 
@@ -150,7 +166,7 @@ post users_path, :auth => :admin do
   end
 end
 
-patch user_path, :auth => %i(admin user) do
+patch user_path, :auth => %i(admin user), :ability => :@user do
   @user.from_api(parse_body)
 
   if @user.save
@@ -164,7 +180,7 @@ patch user_path, :auth => %i(admin user) do
   end
 end
 
-delete user_path, :auth => %i(admin user) do
+delete user_path, :auth => %i(admin user), :ability => :@user do
   @user.destroy
 
   status 204
@@ -178,7 +194,7 @@ get user_pubkey_path do
   json @pubkey.as_api
 end
 
-post user_pubkeys_path, :auth => %i(admin user) do
+post user_pubkeys_path, :auth => %i(admin user), :ability => :@user do
   pubkey = @user.pubkeys.new
   pubkey.from_api(parse_body)
 
@@ -194,7 +210,7 @@ post user_pubkeys_path, :auth => %i(admin user) do
   end
 end
 
-patch user_pubkey_path, :auth => %i(admin user) do
+patch user_pubkey_path, :auth => %i(admin user), :ability => :@pubkey do
   @pubkey.from_api(parse_body)
 
   if @pubkey.save
@@ -208,7 +224,7 @@ patch user_pubkey_path, :auth => %i(admin user) do
   end
 end
 
-delete user_pubkey_path, :auth => %i(admin user) do
+delete user_pubkey_path, :auth => %i(admin user), :ability => :@pubkey do
   @pubkey.destroy
 
   status 204

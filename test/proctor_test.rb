@@ -55,7 +55,7 @@ class ProctorTest < Minitest::Test
     assert_location(/\/users\/batman\z/)
   end
 
-  def test_create_user_for_no_admins
+  def test_create_user_for_non_admins
     %i(user guest).each do |role|
       authorize role
 
@@ -88,14 +88,26 @@ class ProctorTest < Minitest::Test
     assert_location(/\/users\/batman\z/)
   end
 
-  def test_update_user_for_guest
-    authorize :guest
-
-    FactoryGirl.create(:user, :robin)
+  def test_user_updates_itself
+    robin = FactoryGirl.create(:user, :robin)
+    authorize robin
 
     patch "/users/robin", to_json({ "name" => "batman" })
 
-    assert_status 403
+    assert_status 200
+    assert_location(/\/users\/batman\z/)
+  end
+
+  def test_update_user_for_other_user
+    %i(user guest).each do |role|
+      authorize role
+
+      user = FactoryGirl.create(:user)
+
+      patch "/users/#{user.name}", to_json({ "name" => "batman" })
+
+      assert_status 403
+    end
   end
 
   def test_update_user_with_existing_name
@@ -116,14 +128,25 @@ class ProctorTest < Minitest::Test
     assert_nil User.find_by(:name => "batman")
   end
 
-  def test_delete_existing_user_for_guest
-    authorize :guest
-
-    FactoryGirl.create(:user, :batman)
+  def test_user_deletes_itself
+    batman = FactoryGirl.create(:user, :batman)
+    authorize batman
 
     delete "/users/batman"
 
-    assert_status 403
+    assert_status 204
+    assert_nil User.find_by(:name => "batman")
+  end
+
+  def test_user_deletes_other_user
+    %i(user guest).each do |role|
+      authorize role
+      user = FactoryGirl.create(:user)
+
+      delete "/users/#{user.name}"
+
+      assert_status 403
+    end
   end
 
   def test_delete_missing_user
@@ -164,14 +187,36 @@ class ProctorTest < Minitest::Test
     end
   end
 
-  def test_create_pubkey_for_guest
-    authorize :guest
+  def test_user_creates_pubkey_by_itself
+    user = FactoryGirl.create(:user, :batman)
+    authorize user
 
-    FactoryGirl.create(:user, :batman)
+    assert_difference -> { user.reload.pubkeys.count } do
+      key = fixture_content("id_rsa.pub")
+      payload = {
+        "title" => "testkey",
+        "key"   => key,
+      }
+      post "/users/batman/pubkeys", to_json(payload)
 
-    post "/users/batman/pubkeys"
+      assert_status 201
+      assert_match(
+        /\/users\/batman\/pubkeys\/testkey\z/,
+        last_response.headers["Location"]
+      )
+    end
+  end
 
-    assert_status 403
+  def test_user_creates_pubkey_for_other_user
+    %i(user guest).each do |role|
+      authorize role
+
+      user = FactoryGirl.create(:user)
+
+      post "/users/#{user.name}/pubkeys"
+
+      assert_status 403
+    end
   end
 
   def test_update_pubkey
@@ -186,17 +231,33 @@ class ProctorTest < Minitest::Test
     assert_status 200
   end
 
-  def test_update_pubkey_for_guest
-    authorize :guest
-
+  def test_user_update_pubkey_by_itself
+    key = fixture_content("id_rsa.pub")
     user = FactoryGirl.create(:user, :batman)
-    user.pubkeys.create(:title => "batkey", :key => "test")
+    authorize user
 
-    payload = { "key" => "test-2" }
+    user.pubkeys.create(:title => "batkey", :key => key)
+
+    payload = { "key" => fixture_content("id_rsa_v2.pub") }
 
     patch "/users/batman/pubkeys/batkey", to_json(payload)
 
-    assert_status 403
+    assert_status 200
+  end
+
+  def test_user_updates_pubkey_from_other_user
+    %i(user guest).each do |role|
+      authorize role
+
+      user = FactoryGirl.create(:user)
+      user.pubkeys.create(:title => "batkey", :key => "test")
+
+      payload = { "key" => "test-2" }
+
+      patch "/users/#{user.name}/pubkeys/batkey", to_json(payload)
+
+      assert_status 403
+    end
   end
 
   def test_update_missing_key
@@ -260,15 +321,30 @@ class ProctorTest < Minitest::Test
     assert_nil Pubkey.find_by(:title => "batkey")
   end
 
-  def test_delete_user_pubkey_for_guest
-    authorize :guest
-
+  def test_user_deletes_pubky_by_itself
+    key = fixture_content("id_rsa.pub")
     user = FactoryGirl.create(:user, :batman)
-    user.pubkeys.create(:title => "batkey", :key => "test")
+    authorize user
+
+    user.pubkeys.create(:title => "batkey", :key => key)
 
     delete "/users/batman/pubkeys/batkey"
 
-    assert_status 403
+    assert_status 204
+    assert_nil Pubkey.find_by(:title => "batkey")
+  end
+
+  def test_delete_user_pubkey_for_other_user
+    %i(user guest).each do |role|
+      authorize role
+
+      user = FactoryGirl.create(:user)
+      user.pubkeys.create(:title => "batkey", :key => "test")
+
+      delete "/users/#{user.name}/pubkeys/batkey"
+
+      assert_status 403
+    end
   end
 
   def test_create_membership

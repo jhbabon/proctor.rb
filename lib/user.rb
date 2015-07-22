@@ -30,6 +30,14 @@ class User < ActiveRecord::Base
     end
   end
 
+  def admin?
+    role == "admin"
+  end
+
+  def guest?
+    role == "guest"
+  end
+
   def as_api
     as_json(only: %i(name))
   end
