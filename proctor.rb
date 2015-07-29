@@ -6,12 +6,9 @@ require "oj"
 
 require "models"
 require "ability"
-require "bootstrap"
+require "guard"
 
-use Rack::Auth::Basic do |username, password|
-  user = User.find_by(:name => username)
-  user && user.authenticate(password)
-end
+use Guard, ENV
 
 configure do
   set :database, ENV["PROCTOR_DATABASE_URL"]
@@ -49,10 +46,6 @@ configure do
       true
     end
   end
-
-  # Bootstrap the app with default values
-  # This is called when the file is evaluated
-  Bootstrap.run(ENV)
 end
 
 helpers do
@@ -91,7 +84,7 @@ helpers do
   #
   # Returns the current User or stops with 401 if not found.
   def current_user
-    @current_user ||= User.find_by(:name => env["REMOTE_USER"]).tap do |user|
+    @current_user ||= env["guard.user"].tap do |user|
       halt 401 if user.nil?
     end
   end

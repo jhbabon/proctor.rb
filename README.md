@@ -23,7 +23,7 @@ Proctor needs the environment for the configuration. These are the environment v
 
 - `RACK_ENV`: The environment for the app. If not set is `development` by default.
 - `PROCTOR_DATABASE_URL`: The URL to the database. Proctor works with SQLite, so a valid url would be like `sqlite3:/path/to/proctor.sqlite3`
-- `PROCTOR_ADMIN_USERNAME`: This is the default admin of the app. If there are no users in the system, it will be created at boot time.
+- `PROCTOR_ADMIN_USERNAME`: This is the default admin of the app.
 - `PROCTOR_ADMIN_PASSWORD`: All users need a password.
 
 You can put the `PROCTOR_*` variables in a `.env` file an the app will load them. You can see an example of this file in `.env.sample`.
