@@ -538,7 +538,7 @@ class ProctorTest < Minitest::Test
     key = fixture_content("id_rsa.pub")
     user = FactoryGirl.create(:user, :batman)
     user.teams.build(:name => "jla")
-    user.pubkeys.build(:title => "batkey", key: key)
+    user.pubkeys.build(:title => "batkey", :key => key)
     user.save
 
     get "/teams/jla/pubkeys"
