@@ -19,25 +19,30 @@ require "models"
 # in the rack environment so the next app in the stack will have access
 # to it using the key "guard.user".
 class Guard
-  attr_accessor :env
+  attr_writer :user_finder
 
-  def initialize(app, system_env = ENV, realm = nil)
+  def initialize(app, system_env = ENV)
     @system_env = system_env
     @rack_env   = {}
-
-    @app = auth_basic(app, realm) do |username, password|
-      authenticate(username, password)
-    end
+    @app        = app
   end
 
-  def auth_basic(app, realm, &authenticator)
-    Rack::Auth::Basic.new(app, realm, &authenticator)
+  def auth_basic(app, &authenticator)
+    Rack::Auth::Basic.new(app, &authenticator)
   end
 
   def call(env)
     @rack_env = env
 
-    @app.call(env)
+    dup.call!
+  end
+
+  def call!
+    auth = auth_basic(@app) do |username, password|
+      authenticate(username, password)
+    end
+
+    auth.call(@rack_env)
   end
 
   def authenticate(username, password)
@@ -48,10 +53,14 @@ class Guard
     end
   end
 
+  def user_finder
+    @user_finder ||= User
+  end
+
   private
 
   def find_user(username)
-    User.find_by(:name => username)
+    user_finder.find_by(:name => username)
   end
 
   def guardian(username)

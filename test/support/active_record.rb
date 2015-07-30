@@ -7,11 +7,20 @@ class Minitest::Test
 
   def run
     output = nil
+    boom   = nil
 
     ActiveRecord::Base.transaction do
-      output = _run_
-      raise ActiveRecord::Rollback
+      begin
+        output = _run_
+      rescue => e
+        raise ActiveRecord::Rollback
+        boom = e
+      ensure
+        raise ActiveRecord::Rollback
+      end
     end
+
+    raise boom if boom
 
     output
   end
